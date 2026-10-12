@@ -10,18 +10,34 @@ data Option a = None | Some a deriving (Show, Eq)
 
 -- Now implement Functor, Applicative and Monad
 instance Functor Option where
-    fmap :: (a -> b) -> Option a -> Option b
-    fmap _ None     = None
-    fmap f (Some a) = Some (f a)
+  fmap :: (a -> b) -> Option a -> Option b
+-- Part 1
+--    fmap _ None     = None
+--    fmap f (Some a) = Some (f a)
+
+-- Part 2
+-- `pure f` wraps the function in Option, returns a applicative function:
+-- Either `f (Option a)` for `None` or `f (a -> Option a)` for `Some`
+-- `<*>` applies this function to `a` and returns either `None` or `Some a`  
+  fmap f a = pure f <*> a
 
 instance Applicative Option where
     pure :: a -> Option a
     pure a = Some a
 
     (<*>) :: Option (a -> b) -> Option a -> Option b
-    (<*>) None _             = None 
-    (<*>) _ None             = None
-    (<*>) (Some f) (Some a)  = Some (f a)
+    -- Part 1
+    -- (<*>) None _             = None 
+    -- (<*>) _ None             = None
+    -- (<*>) (Some f) (Some a)  = Some (f a)
+    
+    -- Part 2
+    (<*>) mf ma =
+      mf >>= \f ->    -- Unpack the function from its context (e.g. Some (a -> b) -> (a -> b))
+        ma >>= \a ->  -- Unpack `a` from its context (e.g. Some (a) -> a)
+          pure (f a)  -- Apply `f` on `a` and wrap it back into its context
+
+
 
 instance Monad Option where
   (>>=) :: Option a -> (a -> Option b) -> Option b
@@ -30,6 +46,7 @@ instance Monad Option where
 
 -- TODO: Check your definitions by running the tests:
 -- > cabal test option --test-show-details=direct
+
 
 -------------------------------------------------------------------------------
 -- Example: Bank accounts
