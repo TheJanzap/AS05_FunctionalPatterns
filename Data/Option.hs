@@ -18,7 +18,8 @@ instance Functor Option where
 -- Part 2
 -- `pure f` wraps the function in Option, returns a applicative function:
 -- Either `f (Option a)` for `None` or `f (a -> Option a)` for `Some`
--- `<*>` applies this function to `a` and returns either `None` or `Some a`  
+-- `<*>` applies this function to `a` and returns either `None` or `Some a`
+-- Note that we don't need to handle the none case, `<*>` handles it for us
   fmap f a = pure f <*> a
 
 instance Applicative Option where
@@ -36,6 +37,7 @@ instance Applicative Option where
       mf >>= \f ->    -- Unpack the function from its context (e.g. Some (a -> b) -> (a -> b))
         ma >>= \a ->  -- Unpack `a` from its context (e.g. Some (a) -> a)
           pure (f a)  -- Apply `f` on `a` and wrap it back into its context
+-- Again, no need to handle the `None` case, `>>=` will return automatically. 
 
 
 
