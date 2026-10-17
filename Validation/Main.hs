@@ -123,10 +123,10 @@ instance (Monoid e) => Applicative (Validation e) where
   pure a = Validation (Right a) -- Create a validated value, no error
 
   (<*>) :: Validation e (a -> b) -> Validation e a -> Validation e b
-  -- Special Case: Combine two errors with each other
+  -- Special Case: Combine two errors with each other using Semigroups `<>` operator
   (<*>) (Validation (Left e1)) (Validation (Left e2)) = Validation (Left (e1 <> e2))
   -- General Case: Combine two values or a value with an error
-  (<*>) (Validation l) (Validation r) = Validation (l <*> r)
+  (<*>) (Validation l) (Validation r)                 = Validation (l <*> r)
 
 
 -- To collect errors, we can now equip Validation with a monoidal 

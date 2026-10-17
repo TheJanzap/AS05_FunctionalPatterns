@@ -43,8 +43,8 @@ instance Applicative Option where
 
 instance Monad Option where
   (>>=) :: Option a -> (a -> Option b) -> Option b
-  (>>=) None _      = None
-  (>>=) (Some a) f  = f a
+  None     >>= _ = None
+  (Some a) >>= f = f a
 
 -- TODO: Check your definitions by running the tests:
 -- > cabal test option --test-show-details=direct
@@ -97,14 +97,14 @@ balanceByEmail' email =
 balanceByEmail'' :: String -> Option Double
 balanceByEmail'' email = userIdByEmail email >>= \uid ->
   accountByUserId uid >>= \account ->
-    Some (balance account)
+    pure (balance account)
 
 -- TODO: Implement the same functionality as above using do-notation:
 balanceByEmail :: String -> Option Double
 balanceByEmail email = do
   uid <- userIdByEmail email
   account <- accountByUserId uid
-  Some (balance account)
+  pure (balance account)
 
 main :: IO ()
 main = do
