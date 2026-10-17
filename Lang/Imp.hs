@@ -29,7 +29,7 @@ data Expr a where
     APlus  :: Expr Integer -> Expr Integer -> Expr Integer
     AMinus :: Expr Integer -> Expr Integer -> Expr Integer
     AMul   :: Expr Integer -> Expr Integer -> Expr Integer
-    ADiv :: Expr Integer -> Expr Integer -> Expr Integer
+    ADiv   :: Expr Integer -> Expr Integer -> Expr Integer
     AMod   :: Expr Integer -> Expr Integer -> Expr Integer
     AVar   :: Name -> Expr Integer
 
@@ -41,7 +41,7 @@ data Cmd =
   | CSeq [Cmd]
 
 
--- ImpExpr: Value which takes a state and either returns a value or an error.
+-- ImpExpr: Value which takes a state and either returns a value (Right) or an error (Left).
 newtype ImpExpr a = ImpExpr { runExpr :: State -> Either String a }
 
 
@@ -93,27 +93,38 @@ failWith s = ImpExpr $ \_ -> Left s
 eval :: Expr a -> ImpExpr a
 eval (BNot b)     = fmap not (eval b)
 eval (BAnd a b)   = pure (&&) <*> eval a <*> eval b
-eval (BOr a b)    = todo
+eval (BOr a b)    = pure (||) <*> eval a <*> eval b
 
-eval (REq a b)    = todo   
-eval (RLt a b)    = todo
+eval (REq a b)    = pure (==) <*> eval a <*> eval b
+eval (RLt a b)    = pure (<) <*> eval a <*> eval b
 
 eval (AVar n)     = readVariable n
-eval (AConst n)   = todo
-eval (APlus a b)  = todo
-eval (AMinus a b) = todo
-eval (AMul a b)   = todo
-eval (ADiv a b)   = todo
-eval (AMod a b)   = todo
+eval (AConst n)   = pure n -- unpack the constant and return it
+eval (APlus a b)  = pure (+) <*> eval a <*> eval b
+eval (AMinus a b) = pure (-) <*> eval a <*> eval b
+eval (AMul a b)   = pure (*) <*> eval a <*> eval b
+eval (ADiv a b)   = pure (div) <*> eval a <*> eval b
+eval (AMod a b)   = pure (mod) <*> eval a <*> eval b
 
 
 -- TODO: Refactor the original `exec` function such that it uses 
 -- Either String State instead of State:
 exec :: Cmd -> State -> Either String State
-exec CSkip st = todo
-exec (CAssign n v) st = do
+exec CSkip st           = pure st
+exec (CAssign n v) st   = do
   value <- runExpr (eval v) st
   pure $ M.insert n value st
-exec (CIfThEl b t e) st = todo
-exec (CWhile b c) st = todo
+
+exec (CIfThEl b th el) st = do
+  cond <- runExpr (eval b) st
+  if (cond) then (exec th st) else (exec el st)
+
+exec (CWhile b c) st = do
+  cond <- runExpr (eval b) st -- Evaluate condition
+  if (cond) then do
+    st' <- exec c st          -- Run code in while
+    exec (CWhile b c) st'     -- Recursively call While command
+  else
+    pure st
+
 exec (CSeq cs) st = foldM (flip exec) st cs 
