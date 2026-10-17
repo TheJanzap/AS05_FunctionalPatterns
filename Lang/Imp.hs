@@ -103,9 +103,20 @@ eval (AConst n)   = pure n -- unpack the constant and return it
 eval (APlus a b)  = pure (+) <*> eval a <*> eval b
 eval (AMinus a b) = pure (-) <*> eval a <*> eval b
 eval (AMul a b)   = pure (*) <*> eval a <*> eval b
-eval (ADiv a b)   = pure (div) <*> eval a <*> eval b
-eval (AMod a b)   = pure (mod) <*> eval a <*> eval b
+eval (ADiv a b)   = do
+  a' <- eval a
+  b' <- eval b >>= assertNonZero
+  pure (a' `div` b')
+eval (AMod a b)   = do
+  a' <- eval a
+  b' <- eval b >>= assertNonZero
+  pure (a' `mod` b')
 
+
+assertNonZero :: Integer -> ImpExpr Integer
+assertNonZero i = case i of
+  0 -> failWith "Division by Zero"
+  _ -> pure i
 
 -- TODO: Refactor the original `exec` function such that it uses 
 -- Either String State instead of State:
