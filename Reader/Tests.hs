@@ -30,3 +30,17 @@ main = hspec $ do
     it "createMail == createMail'" $ do
       runWithConfig (createMail name) development `shouldBe` createMail'  name development
       runWithConfig (createMail name) production `shouldBe` createMail' name production
+
+  describe "Optional Env Reader versions" $ do
+
+    it "createBody == createBody''" $ do
+      runInEnv (createBody'' address) development `shouldBe` createBody' address development
+      runInEnv (createBody'' address) production `shouldBe` createBody' address production
+
+    it "createAddr == createAddr''" $ do
+      runInEnv (createAddr'' name) development `shouldBe` createAddr' name development
+      runInEnv (createAddr'' name) production `shouldBe` createAddr' name production
+
+    it "createMail == createMail''" $ do
+      runInEnv (createMail'' name) development `shouldBe` createMail'  name development
+      runInEnv (createMail'' name) production `shouldBe` createMail' name production

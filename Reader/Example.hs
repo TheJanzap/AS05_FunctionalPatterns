@@ -53,21 +53,33 @@ test = createMail' "daniel" (Config False)
 -- of type `ConfigReader a` instead of `Config -> a`.
 newtype ConfigReader a = ConfigReader (Config -> a)
 
+-- Optional task
+newtype Reader env a = Reader (env -> a)
+
 
 -- This function runs a ConfigReader action with a given config.
 runWithConfig :: ConfigReader a -> Config -> a
 runWithConfig (ConfigReader r) config = r config
+
+runInEnv :: Reader env a -> env -> a
+runInEnv (Reader f) env = f env
 
 
 -- This function allows to access the Config.
 getConfig :: ConfigReader Config
 getConfig = ConfigReader id
 
+getConfigEnv :: (Reader env) env
+getConfigEnv = Reader id
 
 -- Here is the Functor instance:
 instance Functor ConfigReader where
   fmap :: (a -> b) -> ConfigReader a -> ConfigReader b
   fmap f (ConfigReader g) = ConfigReader (\c -> f (g c)) -- Same as ConfigReader (f.g)
+
+instance Functor (Reader env) where
+  fmap :: (a -> b) -> Reader env a -> Reader env b
+  fmap f (Reader r) = Reader (\env -> f (r env))
 
 
 -- This is the Applicative instance:
@@ -76,13 +88,25 @@ instance Applicative ConfigReader where
   pure a = ConfigReader (\_ -> a)
 
   (<*>) :: ConfigReader (a -> b) -> ConfigReader a -> ConfigReader b
-  (ConfigReader f) <*> (ConfigReader a) = ConfigReader (\c -> f c (a c))
+  (ConfigReader fl) <*> (ConfigReader fr) = ConfigReader (\c -> fl c (fr c))
+
+instance Applicative (Reader env) where
+  pure :: a -> Reader env a
+  pure a = Reader (\_ -> a)
+
+  (<*>) :: Reader env (a -> b) -> Reader env a -> Reader env b
+  (Reader fl) <*> (Reader fr) = Reader (\env -> fl env (fr env))
 
 
 -- Here is the Monad instance:
 instance Monad ConfigReader where
   (>>=) :: ConfigReader a -> (a -> ConfigReader b) -> ConfigReader b
   (ConfigReader a) >>= f = ConfigReader (\c -> runWithConfig (f (a c)) c)   
+
+
+instance Monad (Reader env) where
+  (>>=) :: Reader env a -> (a -> Reader env b) -> Reader env b
+  (Reader a) >>= f = Reader (\env -> runInEnv (f (a env)) env)
 
 
 -- Here are the three functions again, but this time they return a ConfigReader.
@@ -94,11 +118,21 @@ createBody addr = do
   config <- getConfig
   pure $ "mailto:" ++ addr ++ "\n" ++ if devStage config then "Test" else "Dear .."
 
+createBody'' :: String -> (Reader Config) String
+createBody'' addr = do
+  config <- getConfigEnv
+  pure $ "mailto:" ++ addr ++ "\n" ++ if devStage config then "Test" else "Dear .."
+
 
 -- TODO: Implement createAddr using do-notation.
 createAddr :: String -> ConfigReader String
 createAddr name = do
   config <- getConfig
+  pure $ name ++ if devStage config then "@dummy.com" else "@fp.io"
+
+createAddr'' :: String -> (Reader Config) String
+createAddr'' name = do
+  config <- getConfigEnv
   pure $ name ++ if devStage config then "@dummy.com" else "@fp.io"
 
 
@@ -108,7 +142,16 @@ createMail name = do
   config <- getConfig
   pure $ createBody' (createAddr' name config) config
 
+createMail'' :: String -> (Reader Config) String
+createMail'' name = do
+  addr <- createAddr'' name
+  createBody'' addr
+
+
 -- Here is how we can run a ConfigReader action with a given config:
 -- Expected value: "mailto:daniel@fp.io\nDear .."
 testReader :: String
 testReader = runWithConfig (createMail "daniel") (Config False)
+
+testReader' :: String
+testReader' = runInEnv (createMail'' "daniel") (Config False)
